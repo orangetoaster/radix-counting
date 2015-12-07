@@ -27,36 +27,36 @@ typedef struct {
   uint64_t *data;
 } array;
 
-static void radix(array scratch, array a, array count, uint64_t mask, uint64_t offset) {
+static void radix(array scratch, array read_array, array count, uint64_t mask, uint64_t offset) {
   register size_t i = 0;
 
-  for (i = a.count - 1; i > 0; --i) {
-    scratch.data[ -- count.data[(a.data[i] & mask) >> offset ] ] = a.data[i];
+  for (i = read_array.count - 1; i > 0; --i) {
+    scratch.data[ -- count.data[(read_array.data[i] & mask) >> offset ] ] = read_array.data[i];
   }
   assert(i == 0);
-  scratch.data[ count.data[(a.data[i] & mask) >> offset ] - 1 ] = a.data[i];
+  scratch.data[ count.data[(read_array.data[i] & mask) >> offset ] - 1 ] = read_array.data[i];
 }
 
-static void count(array a, array count, uint64_t mask, uint64_t offset) {
-  memset(count.data, 0, count.count * sizeof(uint64_t));
+static void count(array to_count, array totals, uint64_t mask, uint64_t offset) {
+  memset(totals.data, 0, totals.count * sizeof(uint64_t));
   register size_t i = 0;
 
-  for (i = 0; i < a.count; ++i) {
-    count.data[(a.data[i] & mask) >> offset ] ++ ;
+  for (i = 0; i < to_count.count; ++i) {
+    totals.data[(to_count.data[i] & mask) >> offset ] ++ ;
   }
 
-  for (i = 1; i < count.count; ++i) {
-    count.data[i] += count.data[i - 1];
+  for (i = 1; i < totals.count; ++i) {
+    totals.data[i] += totals.data[i - 1];
 
-    if (count.data[i] >= a.count) {
+    if (totals.data[i] >= to_count.count) {
       return;
     }
   }
 }
 // \theta_m ( 2n + c ) \theta_t ( 8n )
-int radix_counting_sort(array a) {
-  array scratch = { a.count, NULL };
-  scratch.data = malloc(a.count * sizeof(uint64_t));
+int radix_counting_sort(array unsorted) {
+  array scratch = { unsorted.count, NULL };
+  scratch.data = malloc(unsorted.count * sizeof(uint64_t));
 
   if (!scratch.data) {
     return -1;
@@ -67,11 +67,11 @@ int radix_counting_sort(array a) {
   uint64_t mask = 0xFF, offset = 0;
 
   do {
-    count(a, counting_array, mask, offset);
-    radix(scratch, a, counting_array, mask, offset);
+    count(unsorted, counting_array, mask, offset);
+    radix(scratch, unsorted, counting_array, mask, offset);
     array tmp = scratch;
-    scratch = a;
-    a = tmp;
+    scratch = unsorted;
+    unsorted = tmp;
     mask <<= CHAR_BIT;
     offset += CHAR_BIT;
 
@@ -83,22 +83,22 @@ int radix_counting_sort(array a) {
 
 #include <stdio.h>
 
-static int print_array(array a) {
+static int print_array(array to_print) {
   size_t i = 0;
 
-  for (i = 0; i < a.count; ++i) {
-    printf("%lu ", a.data[i]);
+  for (i = 0; i < to_print.count; ++i) {
+    printf("%lu ", to_print.data[i]);
   }
 
   printf("\n");
   return 0;
 }
 
-static int verify_sorted(array a) {
+static int verify_sorted(array sorted) {
   size_t i = 0;
 
-  for (i = 1; i < a.count; ++i) {
-    if (a.data[i] < a.data[i - 1]) {
+  for (i = 1; i < sorted.count; ++i) {
+    if (sorted.data[i] < sorted.data[i - 1]) {
       return -1;
     }
   }
@@ -108,15 +108,15 @@ static int verify_sorted(array a) {
 
 int main(int argc, char *args[]) {
   uint64_t data[] = { 17, 9, 32, 9, 534, 5413, 243, 23, 29, 4839, 93, 90 };
-  array a = { sizeof(data) / sizeof(uint64_t), data };
-  print_array(a);
-  radix_counting_sort(a);
+  array test_input = { sizeof(data) / sizeof(uint64_t), data };
+  print_array(test_input);
+  radix_counting_sort(test_input);
 
-  if (verify_sorted(a) != 0) {
+  if (verify_sorted(test_input) != 0) {
     printf("NOT SORTED!\n");
   }
 
-  print_array(a);
+  print_array(test_input);
   printf("\n");
 
   return 0;
